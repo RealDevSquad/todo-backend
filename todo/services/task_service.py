@@ -599,11 +599,16 @@ class TaskService:
         if dto.assignee:
             assignee_id = dto.assignee.get("assignee_id")
             user_type = dto.assignee.get("user_type")
+            team_id = dto.assignee.get("team_id")
 
             if user_type == "user":
                 user = UserRepository.get_by_id(assignee_id)
                 if not user:
                     raise UserNotFoundException(assignee_id)
+                if team_id:
+                    team = TeamRepository.get_by_id(team_id)
+                    if not team:
+                        raise ValueError(f"Team not found: {team_id}")
             elif user_type == "team":
                 team = TeamRepository.get_by_id(assignee_id)
                 if not team:
@@ -631,10 +636,12 @@ class TaskService:
 
             # Create assignee relationship if assignee is provided
             team_id = None
-            if dto.assignee and dto.assignee.get("user_type") == "team":
-                team_id = dto.assignee.get("assignee_id")
-
             if dto.assignee:
+                if dto.assignee.get("user_type") == "team":
+                    team_id = dto.assignee.get("assignee_id")
+                elif dto.assignee.get("user_type") == "user" and "team_id" in dto.assignee:
+                    team_id = dto.assignee.get("team_id")
+
                 assignee_dto = CreateTaskAssignmentDTO(
                     task_id=str(created_task.id),
                     assignee_id=dto.assignee.get("assignee_id"),

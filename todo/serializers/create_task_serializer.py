@@ -42,6 +42,11 @@ class CreateTaskSerializer(serializers.Serializer):
     dueAt = serializers.DateTimeField(
         required=False, allow_null=True, help_text="Due date and time in ISO format (UTC)"
     )
+    team_id = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+    )
 
     def validate_title(self, value):
         if not value.strip():
@@ -58,6 +63,7 @@ class CreateTaskSerializer(serializers.Serializer):
         # Compose the 'assignee' dict if assignee_id and user_type are present
         assignee_id = data.pop("assignee_id", None)
         user_type = data.pop("user_type", None)
+        team_id = data.pop("team_id", None)
         if assignee_id and user_type:
             if not ObjectId.is_valid(assignee_id):
                 raise serializers.ValidationError(
@@ -65,7 +71,12 @@ class CreateTaskSerializer(serializers.Serializer):
                 )
             if user_type not in ["user", "team"]:
                 raise serializers.ValidationError({"user_type": "user_type must be either 'user' or 'team'"})
-            data["assignee"] = {"assignee_id": assignee_id, "user_type": user_type}
+            if team_id and team_id.strip():
+                if not ObjectId.is_valid(team_id):
+                    raise serializers.ValidationError({"team_id": ValidationErrors.INVALID_OBJECT_ID.format(team_id)})
+                data["assignee"] = {"assignee_id": assignee_id, "user_type": user_type, "team_id": team_id}
+            else:
+                data["assignee"] = {"assignee_id": assignee_id, "user_type": user_type}
 
         due_at = data.get("dueAt")
         timezone_str = data.get("timezone")

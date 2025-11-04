@@ -208,33 +208,170 @@ class TaskServiceTests(AuthenticatedMongoTestCase):
         self.assertEqual(len(response.tasks), 0)
         self.assertIsNone(response.links)
 
-    # @patch("todo.services.task_service.TaskRepository.create")
-    # @patch("todo.services.task_service.TaskService.prepare_task_dto")
-    # def test_create_task_successfully_creates_task(self, mock_prepare_dto, mock_create):
-    #     dto = CreateTaskDTO(
-    #         title="Test Task",
-    #         description="This is a test",
-    #         priority=TaskPriority.HIGH,
-    #         status=TaskStatus.TODO,
-    #         assignee={"assignee_id": str(self.user_id), "user_type": "user"},
-    #         createdBy=str(self.user_id),
-    #         labels=[],
-    #         dueAt=datetime.now(timezone.utc) + timedelta(days=1),
-    #     )
+    @patch("todo.services.task_service.TaskRepository.create")
+    @patch("todo.services.task_service.TaskService.prepare_task_dto")
+    @patch("todo.services.task_service.TaskAssignmentService.create_task_assignment")
+    @patch("todo.services.task_service.UserRepository.get_by_id")
+    @patch("todo.services.task_service.TeamRepository.get_by_id")
+    def test_create_task_with_user_assignment_and_team_id(
+        self, mock_team_repo, mock_user_repo, mock_create_assignment, mock_prepare_dto, mock_create
+    ):
+        team_id = str(ObjectId())
+        user_id = str(ObjectId())
 
-    #     mock_task_model = MagicMock(spec=TaskModel)
-    #     mock_task_model.id = ObjectId()
-    #     mock_create.return_value = mock_task_model
-    #     mock_task_dto = MagicMock(spec=TaskDTO)
-    #     mock_prepare_dto.return_value = mock_task_dto
+        dto = CreateTaskDTO(
+            title="Test Task",
+            description="This is a test",
+            priority=TaskPriority.HIGH,
+            status=TaskStatus.TODO,
+            assignee={"assignee_id": user_id, "user_type": "user", "team_id": team_id},
+            createdBy=str(self.user_id),
+            labels=[],
+            dueAt=datetime.now(timezone.utc) + timedelta(days=1),
+        )
 
-    #     result = TaskService.create_task(dto)
+        mock_user_repo.return_value = MagicMock()
+        mock_team_repo.return_value = MagicMock()
 
-    #     mock_create.assert_called_once()
-    #     created_task_model_arg = mock_create.call_args[0][0]
-    #     self.assertIsNone(created_task_model_arg.deferredDetails)
-    #     mock_prepare_dto.assert_called_once_with(mock_task_model, str(self.user_id))
-    #     self.assertEqual(result.data, mock_task_dto)
+        mock_task_model = MagicMock(spec=TaskModel)
+        mock_task_model.id = ObjectId()
+        mock_task_model.createdBy = str(self.user_id)
+        mock_create.return_value = mock_task_model
+        mock_task_dto = MagicMock(spec=TaskDTO)
+        mock_prepare_dto.return_value = mock_task_dto
+
+        mock_assignment_response = MagicMock()
+        mock_assignment_response.data.task_id = str(mock_task_model.id)
+        mock_assignment_response.data.assignee_id = user_id
+        mock_create_assignment.return_value = mock_assignment_response
+
+        result = TaskService.create_task(dto)
+
+        mock_create.assert_called_once()
+
+        mock_create_assignment.assert_called_once()
+        assignment_call_args = mock_create_assignment.call_args[0][0]
+        self.assertEqual(assignment_call_args.task_id, str(mock_task_model.id))
+        self.assertEqual(assignment_call_args.assignee_id, user_id)
+        self.assertEqual(assignment_call_args.user_type, "user")
+        self.assertEqual(assignment_call_args.team_id, team_id)
+
+        mock_prepare_dto.assert_called_once_with(mock_task_model, str(self.user_id))
+        self.assertEqual(result.data, mock_task_dto)
+
+    @patch("todo.services.task_service.TaskRepository.create")
+    @patch("todo.services.task_service.TaskService.prepare_task_dto")
+    @patch("todo.services.task_service.TaskAssignmentService.create_task_assignment")
+    @patch("todo.services.task_service.UserRepository.get_by_id")
+    def test_create_task_with_user_assignment_without_team_id(
+        self, mock_user_repo, mock_create_assignment, mock_prepare_dto, mock_create
+    ):
+        user_id = str(ObjectId())
+
+        dto = CreateTaskDTO(
+            title="Test Task",
+            description="This is a test",
+            priority=TaskPriority.HIGH,
+            status=TaskStatus.TODO,
+            assignee={"assignee_id": user_id, "user_type": "user"},
+            createdBy=str(self.user_id),
+            labels=[],
+            dueAt=datetime.now(timezone.utc) + timedelta(days=1),
+        )
+
+        mock_user_repo.return_value = MagicMock()
+
+        mock_task_model = MagicMock(spec=TaskModel)
+        mock_task_model.id = ObjectId()
+        mock_task_model.createdBy = str(self.user_id)
+        mock_create.return_value = mock_task_model
+        mock_task_dto = MagicMock(spec=TaskDTO)
+        mock_prepare_dto.return_value = mock_task_dto
+
+        TaskService.create_task(dto)
+
+        mock_create_assignment.assert_called_once()
+        assignment_call_args = mock_create_assignment.call_args[0][0]
+        self.assertEqual(assignment_call_args.task_id, str(mock_task_model.id))
+        self.assertEqual(assignment_call_args.assignee_id, user_id)
+        self.assertEqual(assignment_call_args.user_type, "user")
+        self.assertIsNone(assignment_call_args.team_id)
+
+    @patch("todo.services.task_service.TaskRepository.create")
+    @patch("todo.services.task_service.TaskService.prepare_task_dto")
+    @patch("todo.services.task_service.TaskAssignmentService.create_task_assignment")
+    @patch("todo.services.task_service.UserRepository.get_by_id")
+    @patch("todo.services.task_service.TeamRepository.get_by_id")
+    def test_create_task_validates_team_exists_for_user_assignment(
+        self, mock_team_repo, mock_user_repo, mock_create_assignment, mock_prepare_dto, mock_create
+    ):
+        team_id = str(ObjectId())
+        user_id = str(ObjectId())
+
+        dto = CreateTaskDTO(
+            title="Test Task",
+            description="This is a test",
+            priority=TaskPriority.HIGH,
+            status=TaskStatus.TODO,
+            assignee={"assignee_id": user_id, "user_type": "user", "team_id": team_id},
+            createdBy=str(self.user_id),
+            labels=[],
+            dueAt=datetime.now(timezone.utc) + timedelta(days=1),
+        )
+
+        mock_user_repo.return_value = MagicMock()
+        mock_team_repo.return_value = None  # Team not found
+
+        with self.assertRaises(ValueError) as context:
+            TaskService.create_task(dto)
+
+        self.assertIn(f"Team not found: {team_id}", str(context.exception))
+        mock_team_repo.assert_called_once_with(team_id)
+
+    @patch("todo.services.task_service.TaskRepository.create")
+    @patch("todo.services.task_service.TaskService.prepare_task_dto")
+    @patch("todo.services.task_service.TaskAssignmentService.create_task_assignment")
+    @patch("todo.services.task_service.UserRepository.get_by_id")
+    @patch("todo.services.task_service.TeamRepository.get_by_id")
+    def test_create_task_passes_team_id_to_assignment_service(
+        self, mock_team_repo, mock_user_repo, mock_create_assignment, mock_prepare_dto, mock_create
+    ):
+        team_id = str(ObjectId())
+        user_id = str(ObjectId())
+
+        dto = CreateTaskDTO(
+            title="Test Task",
+            description="This is a test",
+            priority=TaskPriority.HIGH,
+            status=TaskStatus.TODO,
+            assignee={"assignee_id": user_id, "user_type": "user", "team_id": team_id},
+            createdBy=str(self.user_id),
+            labels=[],
+            dueAt=datetime.now(timezone.utc) + timedelta(days=1),
+        )
+
+        mock_user_repo.return_value = MagicMock()
+        mock_team_repo.return_value = MagicMock()
+
+        mock_task_model = MagicMock(spec=TaskModel)
+        mock_task_model.id = ObjectId()
+        mock_task_model.createdBy = str(self.user_id)
+        mock_create.return_value = mock_task_model
+        mock_task_dto = MagicMock(spec=TaskDTO)
+        mock_prepare_dto.return_value = mock_task_dto
+
+        mock_assignment_response = MagicMock()
+        mock_assignment_response.data.task_id = str(mock_task_model.id)
+        mock_assignment_response.data.assignee_id = user_id
+        mock_create_assignment.return_value = mock_assignment_response
+
+        TaskService.create_task(dto)
+
+        mock_create_assignment.assert_called_once()
+        assignment_call_args = mock_create_assignment.call_args[0][0]
+        self.assertEqual(assignment_call_args.team_id, team_id)
+        self.assertEqual(assignment_call_args.assignee_id, user_id)
+        self.assertEqual(assignment_call_args.user_type, "user")
 
     @patch("todo.services.task_service.TaskRepository.get_by_id")
     @patch("todo.services.task_service.TaskService.prepare_task_dto")

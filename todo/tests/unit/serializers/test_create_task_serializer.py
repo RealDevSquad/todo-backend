@@ -59,3 +59,26 @@ class CreateTaskSerializerTest(TestCase):
         serializer = CreateTaskSerializer(data=data)
         self.assertFalse(serializer.is_valid())
         self.assertIn("user_type", serializer.errors)
+
+    def test_serializer_accepts_valid_team_id(self):
+        data = self.valid_data.copy()
+        data["team_id"] = str(ObjectId())
+        serializer = CreateTaskSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
+        self.assertIn("assignee", serializer.validated_data)
+        self.assertEqual(serializer.validated_data["assignee"]["team_id"], data["team_id"])
+
+    def test_serializer_rejects_invalid_team_id(self):
+        data = self.valid_data.copy()
+        data["team_id"] = "invalid_team_id"
+        serializer = CreateTaskSerializer(data=data)
+        self.assertFalse(serializer.is_valid())
+        self.assertIn("team_id", serializer.errors)
+
+    def test_serializer_handles_empty_team_id(self):
+        data = self.valid_data.copy()
+        data["team_id"] = ""
+        serializer = CreateTaskSerializer(data=data)
+        self.assertTrue(serializer.is_valid())
+        self.assertIn("assignee", serializer.validated_data)
+        self.assertNotIn("team_id", serializer.validated_data["assignee"])

@@ -71,6 +71,16 @@ class TaskAssignmentService:
             )
             assignment = TaskAssignmentRepository.create(task_assignment)
 
+            if assignment.user_type == "user" and assignment.team_id:
+                AuditLogRepository.create(
+                    AuditLogModel(
+                        task_id=assignment.task_id,
+                        team_id=assignment.team_id,
+                        action="assigned_to_member",
+                        performed_by=PyObjectId(user_id),
+                    )
+                )
+
         # If new assignment is to a team, log assignment
         if assignment.user_type == "team":
             AuditLogRepository.create(

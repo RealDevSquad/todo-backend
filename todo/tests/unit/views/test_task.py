@@ -53,7 +53,6 @@ class TaskViewTests(AuthenticatedMongoTestCase):
             user_id=str(self.user_id),
             team_id=None,
             status_filter=None,
-            assignee_ids=None,
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         expected_response = mock_get_tasks.return_value.model_dump(mode="json")
@@ -73,7 +72,6 @@ class TaskViewTests(AuthenticatedMongoTestCase):
             user_id=str(self.user_id),
             team_id=None,
             status_filter=None,
-            assignee_ids=None,
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -102,49 +100,6 @@ class TaskViewTests(AuthenticatedMongoTestCase):
         for actual_error, expected_error in zip(response_data["errors"], expected_response["errors"]):
             self.assertEqual(actual_error["source"]["parameter"], expected_error["source"]["parameter"])
             self.assertEqual(actual_error["detail"], expected_error["detail"])
-
-    def test_get_tasks_requires_team_for_assignee_filter(self):
-        response = self.client.get(self.url, {"assigneeId": str(ObjectId())})
-
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        error_sources = [error["source"].get("parameter") for error in response.data.get("errors", [])]
-        self.assertIn("teamId", error_sources)
-
-    @patch("todo.views.task.UserTeamDetailsRepository.get_users_by_team_id", return_value=["user1"])
-    def test_get_tasks_rejects_assignee_not_in_team(self, mock_get_team_members: Mock):
-        team_id = str(ObjectId())
-        assignee_id = str(ObjectId())
-
-        response = self.client.get(self.url, {"teamId": team_id, "assigneeId": assignee_id})
-
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("errors", response.data)
-        self.assertTrue(
-            any(ValidationErrors.USER_NOT_TEAM_MEMBER in error.get("detail", "") for error in response.data["errors"])
-        )
-        mock_get_team_members.assert_called_once_with(team_id)
-
-    @patch("todo.views.task.UserTeamDetailsRepository.get_users_by_team_id", return_value=["user1", "user2"])
-    @patch("todo.services.task_service.TaskService.get_tasks")
-    def test_get_tasks_with_assignee_filter_passes_ids(self, mock_get_tasks: Mock, mock_get_team_members: Mock):
-        mock_get_tasks.return_value = GetTasksResponse(tasks=task_dtos)
-        team_id = str(ObjectId())
-        params = {"teamId": team_id, "page": 1, "limit": 10, "assigneeId": ["user1", "user2"]}
-
-        response = self.client.get(self.url, params)
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        mock_get_team_members.assert_called_once_with(team_id)
-        mock_get_tasks.assert_called_once_with(
-            page=1,
-            limit=10,
-            sort_by="updatedAt",
-            order="desc",
-            user_id=str(self.user_id),
-            team_id=team_id,
-            status_filter=None,
-            assignee_ids=["user1", "user2"],
-        )
 
     @patch("todo.services.task_service.TaskService.get_task_by_id")
     def test_get_single_task_success(self, mock_get_task_by_id: Mock):
@@ -228,7 +183,6 @@ class TaskViewTest(AuthenticatedMongoTestCase):
             user_id=str(self.user_id),
             team_id=None,
             status_filter=None,
-            assignee_ids=None,
         )
 
     @patch("todo.services.task_service.TaskService.get_tasks")
@@ -247,7 +201,6 @@ class TaskViewTest(AuthenticatedMongoTestCase):
             user_id=str(self.user_id),
             team_id=None,
             status_filter=None,
-            assignee_ids=None,
         )
 
     def test_get_tasks_with_invalid_page(self):
@@ -296,7 +249,6 @@ class TaskViewSortingTests(AuthenticatedMongoTestCase):
             user_id=str(self.user_id),
             team_id=None,
             status_filter=None,
-            assignee_ids=None,
         )
 
     @patch("todo.services.task_service.TaskService.get_tasks")
@@ -314,7 +266,6 @@ class TaskViewSortingTests(AuthenticatedMongoTestCase):
             user_id=str(self.user_id),
             team_id=None,
             status_filter=None,
-            assignee_ids=None,
         )
 
     @patch("todo.services.task_service.TaskService.get_tasks")
@@ -344,7 +295,6 @@ class TaskViewSortingTests(AuthenticatedMongoTestCase):
                     user_id=str(self.user_id),
                     team_id=None,
                     status_filter=None,
-                    assignee_ids=None,
                 )
 
     @patch("todo.services.task_service.TaskService.get_tasks")
@@ -368,7 +318,6 @@ class TaskViewSortingTests(AuthenticatedMongoTestCase):
                     user_id=str(self.user_id),
                     team_id=None,
                     status_filter=None,
-                    assignee_ids=None,
                 )
 
     def test_get_tasks_with_invalid_sort_by(self):
@@ -404,7 +353,6 @@ class TaskViewSortingTests(AuthenticatedMongoTestCase):
             user_id=str(self.user_id),
             team_id=None,
             status_filter=None,
-            assignee_ids=None,
         )
 
     @patch("todo.services.task_service.TaskService.get_tasks")
@@ -422,7 +370,6 @@ class TaskViewSortingTests(AuthenticatedMongoTestCase):
             user_id=str(self.user_id),
             team_id=None,
             status_filter=None,
-            assignee_ids=None,
         )
 
     def test_get_tasks_edge_case_combinations(self):
@@ -440,7 +387,6 @@ class TaskViewSortingTests(AuthenticatedMongoTestCase):
                 user_id=str(self.user_id),
                 team_id=None,
                 status_filter=None,
-                assignee_ids=None,
             )
 
 

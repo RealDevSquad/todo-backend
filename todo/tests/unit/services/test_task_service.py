@@ -132,9 +132,10 @@ class TaskServiceTests(AuthenticatedMongoTestCase):
         )
         mock_count.assert_called_once_with("test_user", team_id=None, status_filter=None, assignee_ids=None)
 
+    @patch("todo.services.task_service.TeamRepository.is_user_team_member", return_value=True)
     @patch("todo.services.task_service.TaskRepository.count")
     @patch("todo.services.task_service.TaskRepository.list")
-    def test_get_tasks_passes_assignee_ids_to_repo(self, mock_list: Mock, mock_count: Mock):
+    def test_get_tasks_passes_assignee_ids_to_repo(self, mock_list: Mock, mock_count: Mock, mock_team_member: Mock):
         mock_list.return_value = []
         mock_count.return_value = 0
 

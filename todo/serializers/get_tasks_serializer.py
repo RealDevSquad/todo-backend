@@ -11,6 +11,19 @@ class CaseInsensitiveChoiceField(serializers.ChoiceField):
         return super().to_internal_value(data)
 
 
+class QueryParameterListField(serializers.ListField):
+    """
+    DRF list field that understands QueryDict inputs with repeated parameters.
+    """
+
+    def get_value(self, dictionary):
+        if hasattr(dictionary, "getlist") and self.field_name in dictionary:
+            values = dictionary.getlist(self.field_name)
+            if values:
+                return values
+        return super().get_value(dictionary)
+
+
 class GetTaskQueryParamsSerializer(serializers.Serializer):
     page = serializers.IntegerField(
         required=False,
@@ -44,6 +57,11 @@ class GetTaskQueryParamsSerializer(serializers.Serializer):
 
     teamId = serializers.CharField(required=False, allow_blank=False, allow_null=True)
 
+    assigneeId = QueryParameterListField(
+        child=serializers.CharField(allow_blank=False),
+        required=False,
+    )
+
     status = CaseInsensitiveChoiceField(
         choices=[status.value for status in TaskStatus],
         required=False,
@@ -56,5 +74,15 @@ class GetTaskQueryParamsSerializer(serializers.Serializer):
         if "order" not in validated_data or validated_data["order"] is None:
             sort_by = validated_data.get("sort_by", SORT_FIELD_UPDATED_AT)
             validated_data["order"] = SORT_FIELD_DEFAULT_ORDERS[sort_by]
+
+        assignee_ids = validated_data.pop("assigneeId", None)
+        if assignee_ids is not None:
+            seen = set()
+            normalized_ids = []
+            for assignee_id in assignee_ids:
+                if assignee_id not in seen:
+                    normalized_ids.append(assignee_id)
+                    seen.add(assignee_id)
+            validated_data["assignee_ids"] = normalized_ids
 
         return validated_data

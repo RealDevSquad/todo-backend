@@ -30,6 +30,51 @@ class TaskRepository(MongoRepository):
         return list(set(team_task_ids))
 
     @classmethod
+    def _get_task_ids_for_assignees(cls, assignee_ids: List[str], team_id: str | None = None) -> List[ObjectId]:
+        """
+        Resolve active task IDs for the provided assignee IDs, optionally scoped to a team.
+        """
+        if not assignee_ids:
+            return []
+
+        candidate_values = set()
+        for assignee_id in assignee_ids:
+            candidate_values.add(assignee_id)
+            if ObjectId.is_valid(assignee_id):
+                candidate_values.add(ObjectId(assignee_id))
+
+        if not candidate_values:
+            return []
+
+        assignment_collection = TaskAssignmentRepository.get_collection()
+        assignment_filter: dict = {
+            "assignee_id": {"$in": list(candidate_values)},
+            "user_type": "user",
+            "is_active": True,
+        }
+
+        if team_id:
+            team_candidates = {team_id}
+            if ObjectId.is_valid(team_id):
+                team_candidates.add(ObjectId(team_id))
+            assignment_filter["team_id"] = {"$in": list(team_candidates)}
+
+        assignments = assignment_collection.find(
+            assignment_filter,
+            {"task_id": 1},
+        )
+
+        task_ids: set[ObjectId] = set()
+        for assignment in assignments:
+            task_identifier = assignment.get("task_id")
+            if isinstance(task_identifier, ObjectId):
+                task_ids.add(task_identifier)
+            elif isinstance(task_identifier, str) and ObjectId.is_valid(task_identifier):
+                task_ids.add(ObjectId(task_identifier))
+
+        return list(task_ids)
+
+    @classmethod
     def _build_status_filter(cls, status_filter: str = None) -> dict:
         now = datetime.now(timezone.utc)
 
@@ -72,19 +117,41 @@ class TaskRepository(MongoRepository):
         user_id: str = None,
         team_id: str = None,
         status_filter: str = None,
+        assignee_ids: List[str] | None = None,
     ) -> List[TaskModel]:
         tasks_collection = cls.get_collection()
 
         base_filter = cls._build_status_filter(status_filter)
 
-        if team_id:
+        filters = [base_filter]
+
+        team_scope_applied = False
+
+        if assignee_ids:
+            assignee_task_ids = cls._get_task_ids_for_assignees(assignee_ids, team_id=team_id)
+            if not assignee_task_ids:
+                return []
+            filters.append({"_id": {"$in": assignee_task_ids}})
+            if team_id:
+                team_scope_applied = True
+        elif team_id:
             all_team_task_ids = cls._get_team_task_ids(team_id)
-            query_filter = {"$and": [base_filter, {"_id": {"$in": all_team_task_ids}}]}
-        elif user_id:
+            if not all_team_task_ids:
+                return []
+            filters.append({"_id": {"$in": all_team_task_ids}})
+            team_scope_applied = True
+
+        if user_id and not team_scope_applied:
             assigned_task_ids = cls._get_assigned_task_ids_for_user(user_id)
-            query_filter = {"$and": [base_filter, {"_id": {"$in": assigned_task_ids}}]}
+            user_filters = [{"createdBy": user_id}]
+            if assigned_task_ids:
+                user_filters.append({"_id": {"$in": assigned_task_ids}})
+            filters.append({"$or": user_filters})
+
+        if len(filters) == 1:
+            query_filter = filters[0]
         else:
-            query_filter = base_filter
+            query_filter = {"$and": filters}
 
         if sort_by == SORT_FIELD_UPDATED_AT:
             sort_direction = -1 if order == SORT_ORDER_DESC else 1
@@ -149,22 +216,47 @@ class TaskRepository(MongoRepository):
         return direct_task_ids + team_task_ids
 
     @classmethod
-    def count(cls, user_id: str = None, team_id: str = None, status_filter: str = None) -> int:
+    def count(
+        cls,
+        user_id: str = None,
+        team_id: str = None,
+        status_filter: str = None,
+        assignee_ids: List[str] | None = None,
+    ) -> int:
         tasks_collection = cls.get_collection()
 
         base_filter = cls._build_status_filter(status_filter)
 
-        if team_id:
-            all_team_task_ids = cls._get_team_task_ids(team_id)
-            query_filter = {"$and": [base_filter, {"_id": {"$in": all_team_task_ids}}]}
+        filters = [base_filter]
 
-        elif user_id:
+        team_scope_applied = False
+
+        if assignee_ids:
+            assignee_task_ids = cls._get_task_ids_for_assignees(assignee_ids, team_id=team_id)
+            if not assignee_task_ids:
+                return 0
+            filters.append({"_id": {"$in": assignee_task_ids}})
+            if team_id:
+                team_scope_applied = True
+        elif team_id:
+            all_team_task_ids = cls._get_team_task_ids(team_id)
+            if not all_team_task_ids:
+                return 0
+            filters.append({"_id": {"$in": all_team_task_ids}})
+            team_scope_applied = True
+
+        if user_id and not team_scope_applied:
             assigned_task_ids = cls._get_assigned_task_ids_for_user(user_id)
-            query_filter = {
-                "$and": [base_filter, {"$or": [{"createdBy": user_id}, {"_id": {"$in": assigned_task_ids}}]}]
-            }
+            user_filters = [{"createdBy": user_id}]
+            if assigned_task_ids:
+                user_filters.append({"_id": {"$in": assigned_task_ids}})
+            filters.append({"$or": user_filters})
+
+        if len(filters) == 1:
+            query_filter = filters[0]
         else:
-            query_filter = base_filter
+            query_filter = {"$and": filters}
+
         return tasks_collection.count_documents(query_filter)
 
     @classmethod

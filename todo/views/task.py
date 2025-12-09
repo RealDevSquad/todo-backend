@@ -28,6 +28,7 @@ from todo.services.task_assignment_service import TaskAssignmentService
 from todo.dto.responses.create_task_assignment_response import CreateTaskAssignmentResponse
 from todo.dto.task_assignment_dto import CreateTaskAssignmentDTO
 from todo.exceptions.task_exceptions import TaskNotFoundException
+from todo.repositories.team_repository import UserTeamDetailsRepository
 
 
 class TaskListView(APIView):
@@ -62,6 +63,14 @@ class TaskListView(APIView):
                 location=OpenApiParameter.QUERY,
                 description="If provided, filters tasks by status (e.g., 'DONE', 'IN_PROGRESS', 'TODO', 'BLOCKED', 'DEFERRED').",
                 required=False,
+            ),
+            OpenApiParameter(
+                name="assigneeId",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Repeatable parameter that filters tasks assigned to the provided user IDs.",
+                required=False,
+                many=True,
             ),
         ],
         responses={
@@ -100,6 +109,20 @@ class TaskListView(APIView):
 
         team_id = query.validated_data.get("teamId")
         status_filter = query.validated_data.get("status")
+        assignee_ids = query.validated_data.get("assignee_ids")
+
+        if assignee_ids:
+            if not team_id:
+                raise ValidationError({"teamId": ["teamId is required when filtering by assigneeId."]})
+
+            team_members = set(UserTeamDetailsRepository.get_users_by_team_id(team_id))
+            invalid_assignees = [assignee_id for assignee_id in assignee_ids if assignee_id not in team_members]
+
+            if invalid_assignees:
+                raise ValidationError(
+                    {"assigneeId": [f"{ValidationErrors.USER_NOT_TEAM_MEMBER}: {', '.join(invalid_assignees)}"]}
+                )
+
         response = TaskService.get_tasks(
             page=query.validated_data["page"],
             limit=query.validated_data["limit"],
@@ -108,6 +131,7 @@ class TaskListView(APIView):
             user_id=request.user_id,
             team_id=team_id,
             status_filter=status_filter,
+            assignee_ids=assignee_ids,
         )
 
         if response.error and response.error.get("code") == "FORBIDDEN":

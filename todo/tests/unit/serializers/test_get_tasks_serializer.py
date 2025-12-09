@@ -1,6 +1,7 @@
 from unittest import TestCase
-from rest_framework.exceptions import ValidationError
 from django.conf import settings
+from django.http import QueryDict
+from rest_framework.exceptions import ValidationError
 
 from todo.serializers.get_tasks_serializer import GetTaskQueryParamsSerializer
 from todo.constants.task import (
@@ -70,6 +71,22 @@ class GetTaskQueryParamsSerializerTest(TestCase):
         self.assertEqual(serializer.validated_data["page"], 2)
         self.assertEqual(serializer.validated_data["limit"], 5)
         self.assertNotIn("extra_field", serializer.validated_data)
+
+    def test_serializer_collects_assignee_ids_from_querydict(self):
+        query_params = QueryDict(mutable=True)
+        query_params.setlist("assigneeId", ["user1", "user2"])
+
+        serializer = GetTaskQueryParamsSerializer(data=query_params)
+        self.assertTrue(serializer.is_valid())
+        self.assertEqual(serializer.validated_data["assignee_ids"], ["user1", "user2"])
+
+    def test_serializer_deduplicates_assignee_ids(self):
+        query_params = QueryDict(mutable=True)
+        query_params.setlist("assigneeId", ["user1", "user1", "user2"])
+
+        serializer = GetTaskQueryParamsSerializer(data=query_params)
+        self.assertTrue(serializer.is_valid())
+        self.assertEqual(serializer.validated_data["assignee_ids"], ["user1", "user2"])
 
     def test_serializer_uses_django_settings_values(self):
         """Test that the serializer correctly uses values from Django settings"""

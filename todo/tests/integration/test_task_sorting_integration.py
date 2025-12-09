@@ -26,7 +26,14 @@ class TaskSortingIntegrationTest(AuthenticatedMongoTestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         mock_list.assert_called_with(
-            1, 20, SORT_FIELD_PRIORITY, SORT_ORDER_DESC, str(self.user_id), team_id=None, status_filter=None
+            1,
+            20,
+            SORT_FIELD_PRIORITY,
+            SORT_ORDER_DESC,
+            str(self.user_id),
+            team_id=None,
+            status_filter=None,
+            assignee_ids=None,
         )
 
     @patch("todo.repositories.task_repository.TaskRepository.count")
@@ -40,7 +47,14 @@ class TaskSortingIntegrationTest(AuthenticatedMongoTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         mock_list.assert_called_with(
-            1, 20, SORT_FIELD_DUE_AT, SORT_ORDER_ASC, str(self.user_id), team_id=None, status_filter=None
+            1,
+            20,
+            SORT_FIELD_DUE_AT,
+            SORT_ORDER_ASC,
+            str(self.user_id),
+            team_id=None,
+            status_filter=None,
+            assignee_ids=None,
         )
 
     @patch("todo.repositories.task_repository.TaskRepository.count")
@@ -55,7 +69,14 @@ class TaskSortingIntegrationTest(AuthenticatedMongoTestCase):
 
         # Assignee sorting now falls back to createdAt sorting
         mock_list.assert_called_once_with(
-            1, 20, SORT_FIELD_ASSIGNEE, SORT_ORDER_ASC, str(self.user_id), team_id=None, status_filter=None
+            1,
+            20,
+            SORT_FIELD_ASSIGNEE,
+            SORT_ORDER_ASC,
+            str(self.user_id),
+            team_id=None,
+            status_filter=None,
+            assignee_ids=None,
         )
 
     @patch("todo.repositories.task_repository.TaskRepository.count")
@@ -81,7 +102,14 @@ class TaskSortingIntegrationTest(AuthenticatedMongoTestCase):
 
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
                 mock_list.assert_called_with(
-                    1, 20, sort_field, expected_order, str(self.user_id), team_id=None, status_filter=None
+                    1,
+                    20,
+                    sort_field,
+                    expected_order,
+                    str(self.user_id),
+                    team_id=None,
+                    status_filter=None,
+                    assignee_ids=None,
                 )
 
     @patch("todo.repositories.task_repository.TaskRepository.count")
@@ -95,7 +123,14 @@ class TaskSortingIntegrationTest(AuthenticatedMongoTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         mock_list.assert_called_with(
-            3, 5, SORT_FIELD_CREATED_AT, SORT_ORDER_ASC, str(self.user_id), team_id=None, status_filter=None
+            3,
+            5,
+            SORT_FIELD_CREATED_AT,
+            SORT_ORDER_ASC,
+            str(self.user_id),
+            team_id=None,
+            status_filter=None,
+            assignee_ids=None,
         )
 
     def test_invalid_sort_parameters_integration(self):
@@ -116,7 +151,14 @@ class TaskSortingIntegrationTest(AuthenticatedMongoTestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
         mock_list.assert_called_with(
-            1, 20, SORT_FIELD_UPDATED_AT, SORT_ORDER_DESC, str(self.user_id), team_id=None, status_filter=None
+            1,
+            20,
+            SORT_FIELD_UPDATED_AT,
+            SORT_ORDER_DESC,
+            str(self.user_id),
+            team_id=None,
+            status_filter=None,
+            assignee_ids=None,
         )
 
     @patch("todo.repositories.user_repository.UserRepository.get_by_id")

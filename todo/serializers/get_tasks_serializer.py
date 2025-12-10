@@ -77,12 +77,6 @@ class GetTaskQueryParamsSerializer(serializers.Serializer):
 
         assignee_ids = validated_data.pop("assigneeId", None)
         if assignee_ids is not None:
-            seen = set()
-            normalized_ids = []
-            for assignee_id in assignee_ids:
-                if assignee_id not in seen:
-                    normalized_ids.append(assignee_id)
-                    seen.add(assignee_id)
-            validated_data["assignee_ids"] = normalized_ids
+            validated_data["assignee_ids"] = list(dict.fromkeys(assignee_ids))
 
         return validated_data

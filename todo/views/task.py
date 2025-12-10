@@ -113,9 +113,7 @@ class TaskListView(APIView):
 
         if assignee_ids:
             if not team_id:
-                raise ValidationError(
-                    {"teamId": [ValidationErrors.TEAM_ID_REQUIRED_FOR_ASSIGNEE_FILTER]}
-                )
+                raise ValidationError({"teamId": [ValidationErrors.TEAM_ID_REQUIRED_FOR_ASSIGNEE_FILTER]})
 
             team_members = set(UserTeamDetailsRepository.get_users_by_team_id(team_id))
             invalid_assignees = [assignee_id for assignee_id in assignee_ids if assignee_id not in team_members]

@@ -37,18 +37,18 @@ class TaskRepository(MongoRepository):
         if not assignee_ids:
             return []
 
-        candidate_values = set()
+        assignee_lookup_values = set()
         for assignee_id in assignee_ids:
-            candidate_values.add(assignee_id)
+            assignee_lookup_values.add(assignee_id)
             if ObjectId.is_valid(assignee_id):
-                candidate_values.add(ObjectId(assignee_id))
+                assignee_lookup_values.add(ObjectId(assignee_id))
 
-        if not candidate_values:
+        if not assignee_lookup_values:
             return []
 
         assignment_collection = TaskAssignmentRepository.get_collection()
         assignment_filter: dict = {
-            "assignee_id": {"$in": list(candidate_values)},
+            "assignee_id": {"$in": list(assignee_lookup_values)},
             "user_type": "user",
             "is_active": True,
         }

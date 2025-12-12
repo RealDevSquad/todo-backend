@@ -2,6 +2,7 @@ from unittest import TestCase
 from django.conf import settings
 from django.http import QueryDict
 from rest_framework.exceptions import ValidationError
+from bson import ObjectId
 
 from todo.serializers.get_tasks_serializer import GetTaskQueryParamsSerializer
 from todo.constants.task import (
@@ -74,19 +75,22 @@ class GetTaskQueryParamsSerializerTest(TestCase):
 
     def test_serializer_collects_assignee_ids_from_querydict(self):
         query_params = QueryDict(mutable=True)
-        query_params.setlist("assigneeId", ["user1", "user2"])
+        assignee_ids = [str(ObjectId()), str(ObjectId())]
+        query_params.setlist("assigneeId", assignee_ids)
 
         serializer = GetTaskQueryParamsSerializer(data=query_params)
         self.assertTrue(serializer.is_valid())
-        self.assertEqual(serializer.validated_data["assignee_ids"], ["user1", "user2"])
+        self.assertEqual(serializer.validated_data["assignee_ids"], assignee_ids)
 
     def test_serializer_deduplicates_assignee_ids(self):
         query_params = QueryDict(mutable=True)
-        query_params.setlist("assigneeId", ["user1", "user1", "user2"])
+        first_id = str(ObjectId())
+        second_id = str(ObjectId())
+        query_params.setlist("assigneeId", [first_id, first_id, second_id])
 
         serializer = GetTaskQueryParamsSerializer(data=query_params)
         self.assertTrue(serializer.is_valid())
-        self.assertEqual(serializer.validated_data["assignee_ids"], ["user1", "user2"])
+        self.assertEqual(serializer.validated_data["assignee_ids"], [first_id, second_id])
 
     def test_serializer_uses_django_settings_values(self):
         """Test that the serializer correctly uses values from Django settings"""

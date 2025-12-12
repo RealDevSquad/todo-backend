@@ -124,14 +124,15 @@ class TaskViewTests(AuthenticatedMongoTestCase):
         )
         mock_get_team_members.assert_called_once_with(team_id)
 
-    @patch("todo.views.task.UserTeamDetailsRepository.get_users_by_team_id", return_value=["user1", "user2"])
+    @patch("todo.views.task.UserTeamDetailsRepository.get_users_by_team_id")
     @patch("todo.services.task_service.TaskService.get_tasks")
     def test_get_tasks_with_assignee_filter_passes_ids(self, mock_get_tasks: Mock, mock_get_team_members: Mock):
         mock_get_tasks.return_value = GetTasksResponse(tasks=task_dtos)
         team_id = str(ObjectId())
-        params = {"teamId": team_id, "page": 1, "limit": 10, "assigneeId": ["user1", "user2"]}
+        assignee_ids = [str(ObjectId()), str(ObjectId())]
+        mock_get_team_members.return_value = assignee_ids
 
-        response = self.client.get(self.url, params)
+        response = self.client.get(self.url, {"teamId": team_id, "page": 1, "limit": 10, "assigneeId": assignee_ids})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         mock_get_team_members.assert_called_once_with(team_id)
@@ -143,7 +144,7 @@ class TaskViewTests(AuthenticatedMongoTestCase):
             user_id=str(self.user_id),
             team_id=team_id,
             status_filter=None,
-            assignee_ids=["user1", "user2"],
+            assignee_ids=assignee_ids,
         )
 
     @patch("todo.services.task_service.TaskService.get_task_by_id")

@@ -28,6 +28,7 @@ class TaskPaginationIntegrationTest(AuthenticatedMongoTestCase):
             user_id=str(self.user_id),
             team_id=None,
             status_filter=None,
+            assignee_ids=None,
         )
 
         mock_get_tasks.reset_mock()
@@ -43,6 +44,7 @@ class TaskPaginationIntegrationTest(AuthenticatedMongoTestCase):
             user_id=str(self.user_id),
             team_id=None,
             status_filter=None,
+            assignee_ids=None,
         )
 
         # Verify API rejects values above max limit

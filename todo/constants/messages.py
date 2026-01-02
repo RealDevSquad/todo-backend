@@ -81,6 +81,7 @@ class ValidationErrors:
     MISSING_EMAIL = "Email is required"
     MISSING_NAME = "Name is required"
     MISSING_PICTURE = "Picture is required"
+    TEAM_ID_REQUIRED_FOR_ASSIGNEE_FILTER = "teamId is required when filtering by assigneeId."
     SEARCH_QUERY_EMPTY = "Search query cannot be empty"
     TASK_ID_STRING_REQUIRED = "Task ID must be a string."
     INVALID_IS_ACTIVE_VALUE = "Invalid value for is_active"

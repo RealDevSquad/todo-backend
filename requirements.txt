@@ -17,7 +17,7 @@ pymongo==4.10.1
 python-dotenv==1.0.1
 PyYAML==6.0.2
 ruff==0.7.1
-sqlparse==0.5.1
+sqlparse==0.5.4
 typing_extensions==4.12.2
 virtualenv==20.27.0
 django-cors-headers==4.7.0
